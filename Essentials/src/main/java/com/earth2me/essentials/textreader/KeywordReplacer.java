@@ -4,6 +4,7 @@ import com.earth2me.essentials.CommandSource;
 import com.earth2me.essentials.ExecuteTimer;
 import com.earth2me.essentials.PlayerList;
 import com.earth2me.essentials.User;
+import com.earth2me.essentials.utils.AdventureUtil;
 import com.earth2me.essentials.utils.DateUtil;
 import com.earth2me.essentials.utils.DescParseTickFormat;
 import com.earth2me.essentials.utils.EnumUtil;
@@ -29,8 +30,6 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import static com.earth2me.essentials.I18n.tl;
 
 //When adding a keyword here, you also need to add the implementation above
 enum KeywordType {
@@ -140,6 +139,13 @@ public class KeywordReplacer implements IText {
 
         for (int i = 0; i < input.getLines().size(); i++) {
             String line = input.getLines().get(i);
+
+            // Skip processing b64 encoded items, they will not have keywords in them.
+            if (line.startsWith("@")) {
+                replaced.add(line);
+                continue;
+            }
+
             final Matcher matcher = KEYWORD.matcher(line);
 
             while (matcher.find()) {
@@ -222,7 +228,7 @@ public class KeywordReplacer implements IText {
                         break;
                     case BALANCE:
                         if (user != null) {
-                            replacer = NumberUtil.displayCurrency(user.getMoney(), ess);
+                            replacer = AdventureUtil.miniToLegacy(NumberUtil.displayCurrency(user.getMoney(), ess));
                         }
                         break;
                     case MAILS:
@@ -253,7 +259,7 @@ public class KeywordReplacer implements IText {
                         replacer = Integer.toString(ess.getOnlinePlayers().size() - playerHidden);
                         break;
                     case UNIQUE:
-                        replacer = NumberFormat.getInstance().format(ess.getUserMap().getUniqueUsers());
+                        replacer = NumberFormat.getInstance().format(ess.getUsers().getUserCount());
                         break;
                     case WORLDS:
                         final StringBuilder worldsBuilder = new StringBuilder();
@@ -337,7 +343,7 @@ public class KeywordReplacer implements IText {
                     case COORDS:
                         if (user != null) {
                             final Location location = user.getLocation();
-                            replacer = tl("coordsKeyword", location.getBlockX(), location.getBlockY(), location.getBlockZ());
+                            replacer = user.playerTl("coordsKeyword", location.getBlockX(), location.getBlockY(), location.getBlockZ());
                         }
                         break;
                     case TPS:
@@ -375,7 +381,10 @@ public class KeywordReplacer implements IText {
                 }
 
                 if (this.replaceSpacesWithUnderscores) {
-                    replacer = replacer.replaceAll("\\s", "_");
+                    // Don't replace spaces with underscores in command nor escape underscores.
+                    if (!line.startsWith("/")) {
+                        replacer = replacer.replace("_", "\\_").replaceAll("\\s", "_");
+                    }
                 }
 
                 //If this is just a regular keyword, lets throw it into the cache

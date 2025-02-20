@@ -1,6 +1,7 @@
 package com.earth2me.essentials.commands;
 
 import com.earth2me.essentials.CommandSource;
+import com.earth2me.essentials.utils.MaterialUtil;
 import com.earth2me.essentials.utils.StringUtil;
 import com.earth2me.essentials.utils.VersionUtil;
 import org.bukkit.Material;
@@ -10,8 +11,6 @@ import org.bukkit.inventory.ItemStack;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
-import static com.earth2me.essentials.I18n.tl;
 
 public class Commanditemdb extends EssentialsCommand {
     public Commanditemdb() {
@@ -36,22 +35,22 @@ public class Commanditemdb extends EssentialsCommand {
 
         String itemId = "none";
 
-        if (VersionUtil.getServerBukkitVersion().isLowerThan(VersionUtil.v1_13_0_R01)) {
+        if (VersionUtil.PRE_FLATTENING) {
             itemId = itemStack.getType().getId() + ":" + itemStack.getDurability();
         }
 
-        sender.sendMessage(tl("itemType", itemStack.getType().toString(), itemId));
+        sender.sendTl("itemType", itemStack.getType().toString(), itemId);
 
         // Don't send IDs twice
-        if (!tl("itemType").contains("{1}") && !itemId.equals("none")) {
-            sender.sendMessage(tl("itemId", itemId));
+        if (!sender.tl("itemType").contains("{1}") && !itemId.equals("none")) {
+            sender.sendTl("itemId", itemId);
         }
 
         if (itemHeld && itemStack.getType() != Material.AIR) {
             final int maxuses = itemStack.getType().getMaxDurability();
-            final int durability = (maxuses + 1) - itemStack.getDurability();
+            final int durability = (maxuses + 1) - MaterialUtil.getDamage(itemStack);
             if (maxuses != 0) {
-                sender.sendMessage(tl("durability", Integer.toString(durability)));
+                sender.sendTl("durability", Integer.toString(durability));
             }
         }
 
@@ -67,7 +66,7 @@ public class Commanditemdb extends EssentialsCommand {
             nameList = nameList.subList(0, 14);
         }
         final String itemNameList = StringUtil.joinList(", ", nameList);
-        sender.sendMessage(tl("itemNames", itemNameList));
+        sender.sendTl("itemNames", itemNameList);
     }
 
     @Override

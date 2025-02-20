@@ -1,7 +1,10 @@
 package com.earth2me.essentials;
 
+import com.earth2me.essentials.craftbukkit.Inventories;
 import com.earth2me.essentials.utils.MaterialUtil;
 import net.ess3.api.IEssentials;
+import net.ess3.provider.PersistentDataProvider;
+import net.ess3.provider.SpawnerItemProvider;
 import org.bukkit.GameMode;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.CreatureSpawner;
@@ -25,11 +28,11 @@ public class EssentialsBlockListener implements Listener {
     public void onBlockPlace(final BlockPlaceEvent event) {
         final ItemStack is = event.getItemInHand();
 
-        if (is.getType() == MaterialUtil.SPAWNER && ess.getPersistentDataProvider().getString(is, "convert") != null) {
+        if (is.getType() == MaterialUtil.SPAWNER && ess.provider(PersistentDataProvider.class).getString(is, "convert") != null) {
             final BlockState blockState = event.getBlockPlaced().getState();
             if (blockState instanceof CreatureSpawner) {
                 final CreatureSpawner spawner = (CreatureSpawner) blockState;
-                final EntityType type = ess.getSpawnerItemProvider().getEntityType(event.getItemInHand());
+                final EntityType type = ess.provider(SpawnerItemProvider.class).getEntityType(event.getItemInHand());
                 if (type != null && Mob.fromBukkitType(type) != null) {
                     if (ess.getUser(event.getPlayer()).isAuthorized("essentials.spawnerconvert." + Mob.fromBukkitType(type).name().toLowerCase(Locale.ENGLISH))) {
                         spawner.setSpawnedType(type);
@@ -42,8 +45,12 @@ public class EssentialsBlockListener implements Listener {
         final User user = ess.getUser(event.getPlayer());
         if (user.hasUnlimited(is) && user.getBase().getGameMode() == GameMode.SURVIVAL) {
             ess.scheduleSyncDelayedTask(() -> {
-                user.getBase().getInventory().addItem(is);
-                user.getBase().updateInventory();
+                if (is != null && is.getType() != null && !MaterialUtil.isAir(is.getType())) {
+                    final ItemStack cloneIs = is.clone();
+                    cloneIs.setAmount(1);
+                    Inventories.addItem(user.getBase(), cloneIs);
+                    user.getBase().updateInventory();
+                }
             });
         }
     }

@@ -2,9 +2,10 @@ package com.earth2me.essentials;
 
 import com.earth2me.essentials.commands.WarpNotFoundException;
 import com.earth2me.essentials.config.EssentialsConfiguration;
+import com.earth2me.essentials.utils.AdventureUtil;
 import com.earth2me.essentials.utils.StringUtil;
 import net.ess3.api.InvalidNameException;
-import net.ess3.api.InvalidWorldException;
+import net.ess3.api.TranslatableException;
 import org.bukkit.Location;
 
 import java.io.File;
@@ -16,12 +17,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
-import static com.earth2me.essentials.I18n.tl;
+import static com.earth2me.essentials.I18n.tlLiteral;
 
 public class Warps implements IConf, net.ess3.api.IWarps {
-    private static final Logger logger = Logger.getLogger("Essentials");
     private final Map<StringIgnoreCase, EssentialsConfiguration> warpPoints = new HashMap<>();
     private final File warpsFolder;
 
@@ -54,7 +53,7 @@ public class Warps implements IConf, net.ess3.api.IWarps {
     }
 
     @Override
-    public Location getWarp(final String warp) throws WarpNotFoundException, InvalidWorldException {
+    public Location getWarp(final String warp) throws WarpNotFoundException {
         final EssentialsConfiguration conf = warpPoints.get(new StringIgnoreCase(warp));
         if (conf == null) {
             throw new WarpNotFoundException();
@@ -79,7 +78,7 @@ public class Warps implements IConf, net.ess3.api.IWarps {
         if (conf == null) {
             final File confFile = new File(warpsFolder, filename + ".yml");
             if (confFile.exists()) {
-                throw new Exception(tl("similarWarpExist"));
+                throw new TranslatableException("similarWarpExist");
             }
             conf = new EssentialsConfiguration(confFile);
             conf.load();
@@ -111,10 +110,10 @@ public class Warps implements IConf, net.ess3.api.IWarps {
     public void removeWarp(final String name) throws Exception {
         final EssentialsConfiguration conf = warpPoints.get(new StringIgnoreCase(name));
         if (conf == null) {
-            throw new Exception(tl("warpNotExist"));
+            throw new TranslatableException("warpNotExist");
         }
         if (!conf.getFile().delete()) {
-            throw new Exception(tl("warpDeleteError"));
+            throw new TranslatableException("warpDeleteError");
         }
         warpPoints.remove(new StringIgnoreCase(name));
     }
@@ -123,7 +122,7 @@ public class Warps implements IConf, net.ess3.api.IWarps {
     public final void reloadConfig() {
         warpPoints.clear();
         final File[] listOfFiles = warpsFolder.listFiles();
-        if (listOfFiles.length >= 1) {
+        if (listOfFiles != null) {
             for (final File listOfFile : listOfFiles) {
                 final String filename = listOfFile.getName();
                 if (listOfFile.isFile() && filename.endsWith(".yml")) {
@@ -135,7 +134,7 @@ public class Warps implements IConf, net.ess3.api.IWarps {
                             warpPoints.put(new StringIgnoreCase(name), conf);
                         }
                     } catch (final Exception ex) {
-                        logger.log(Level.WARNING, tl("loadWarpError", filename), ex);
+                        Essentials.getWrappedLogger().log(Level.WARNING, AdventureUtil.miniToLegacy(tlLiteral("loadWarpError", filename)), ex);
                     }
                 }
             }

@@ -1,22 +1,21 @@
 package com.earth2me.essentials.protect;
 
 import com.earth2me.essentials.IConf;
+import com.earth2me.essentials.utils.AdventureUtil;
 import net.ess3.api.IEssentials;
 import org.bukkit.plugin.Plugin;
 
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
-import static com.earth2me.essentials.I18n.tl;
+import static com.earth2me.essentials.I18n.tlLiteral;
 
 class EssentialsConnect {
-    private static final Logger logger = Logger.getLogger("EssentialsProtect");
     private final IEssentials ess;
     private final IProtect protect;
 
     EssentialsConnect(final Plugin essPlugin, final Plugin essProtect) {
         if (!essProtect.getDescription().getVersion().equals(essPlugin.getDescription().getVersion())) {
-            logger.log(Level.WARNING, tl("versionMismatchAll"));
+            essProtect.getLogger().log(Level.WARNING, AdventureUtil.miniToLegacy(tlLiteral("versionMismatchAll")));
         }
         ess = (IEssentials) essPlugin;
         protect = (IProtect) essProtect;

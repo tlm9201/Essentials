@@ -5,7 +5,6 @@ import com.earth2me.essentials.Trade;
 import com.earth2me.essentials.Trade.OverflowType;
 import com.earth2me.essentials.User;
 import com.earth2me.essentials.utils.EnumUtil;
-import com.earth2me.essentials.utils.FormatUtil;
 import com.earth2me.essentials.utils.MaterialUtil;
 import net.ess3.api.IEssentials;
 import net.ess3.api.MaxMoneyException;
@@ -20,8 +19,6 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-
-import static com.earth2me.essentials.I18n.tl;
 
 @Deprecated // This sign will be removed soon
 public class SignProtection extends EssentialsSign {
@@ -45,7 +42,7 @@ public class SignProtection extends EssentialsSign {
                 return true;
             }
         }
-        player.sendMessage(tl("signProtectInvalidLocation"));
+        player.sendTl("signProtectInvalidLocation");
         return false;
     }
 
@@ -123,7 +120,7 @@ public class SignProtection extends EssentialsSign {
         if (user.isAuthorized("essentials.signs.protection.override")) {
             return SignProtectionState.OWNER;
         }
-        if (FormatUtil.stripFormat(sign.getLine(3)).equalsIgnoreCase(username)) {
+        if (isOwner(user.getEssentials(), user, sign, 3, "§1")) {
             return SignProtectionState.OWNER;
         }
         for (int i = 1; i <= 2; i++) {
@@ -202,7 +199,7 @@ public class SignProtection extends EssentialsSign {
             final SignProtectionState state = isBlockProtected(adjBlock, player, username, true);
 
             if ((state == SignProtectionState.ALLOWED || state == SignProtectionState.NOT_ALLOWED) && !player.isAuthorized("essentials.signs.protection.override")) {
-                player.sendMessage(tl("noPlacePermission", block.getType().toString().toLowerCase(Locale.ENGLISH)));
+                player.sendTl("noPlacePermission", block.getType().toString().toLowerCase(Locale.ENGLISH));
                 return false;
             }
         }
@@ -222,7 +219,7 @@ public class SignProtection extends EssentialsSign {
             return true;
         }
 
-        player.sendMessage(tl("noAccessPermission", block.getType().toString().toLowerCase(Locale.ENGLISH)));
+        player.sendTl("noAccessPermission", block.getType().toString().toLowerCase(Locale.ENGLISH));
         return false;
     }
 
@@ -240,7 +237,7 @@ public class SignProtection extends EssentialsSign {
             return true;
         }
 
-        player.sendMessage(tl("noDestroyPermission", block.getType().toString().toLowerCase(Locale.ENGLISH)));
+        player.sendTl("noDestroyPermission", block.getType().toString().toLowerCase(Locale.ENGLISH));
         return false;
     }
 

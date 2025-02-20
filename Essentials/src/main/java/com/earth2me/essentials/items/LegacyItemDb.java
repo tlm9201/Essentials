@@ -3,9 +3,14 @@ package com.earth2me.essentials.items;
 import com.earth2me.essentials.ManagedFile;
 import com.earth2me.essentials.utils.EnumUtil;
 import com.earth2me.essentials.utils.NumberUtil;
+import com.earth2me.essentials.utils.StringUtil;
 import com.earth2me.essentials.utils.VersionUtil;
 import net.ess3.api.IEssentials;
-import org.apache.commons.lang.StringUtils;
+import net.ess3.api.TranslatableException;
+import net.ess3.provider.PersistentDataProvider;
+import net.ess3.provider.PotionMetaProvider;
+import net.ess3.provider.SpawnEggProvider;
+import net.ess3.provider.SpawnerItemProvider;
 import org.bukkit.Material;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
@@ -17,14 +22,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.earth2me.essentials.I18n.tl;
-
 public class LegacyItemDb extends AbstractItemDb {
-    protected static final Logger LOGGER = Logger.getLogger("Essentials");
     private final transient Map<String, Integer> items = new HashMap<>();
     private final transient Map<ItemData, List<String>> names = new HashMap<>();
     private final transient Map<ItemData, String> primaryName = new HashMap<>();
@@ -68,10 +69,10 @@ public class LegacyItemDb extends AbstractItemDb {
             final Matcher matcher = csvSplitPattern.matcher(line);
             while (matcher.find()) {
                 String match = matcher.group(1);
-                if (StringUtils.stripToNull(match) == null) {
+                if (StringUtil.stripToNull(match) == null) {
                     continue;
                 }
-                match = StringUtils.strip(match.trim(), "\"");
+                match = StringUtil.strip(match.trim(), "\"");
                 switch (col) {
                     case 0:
                         itemName = match.toLowerCase(Locale.ENGLISH);
@@ -83,7 +84,7 @@ public class LegacyItemDb extends AbstractItemDb {
                         data = Short.parseShort(match);
                         break;
                     case 3:
-                        nbt = StringUtils.stripToNull(match);
+                        nbt = StringUtil.stripToNull(match);
                         break;
                     default:
                         continue;
@@ -119,7 +120,7 @@ public class LegacyItemDb extends AbstractItemDb {
             nameList.sort(LengthCompare.INSTANCE);
         }
 
-        LOGGER.info(String.format("Loaded %s items from items.csv.", listNames().size()));
+        ess.getLogger().info(String.format("Loaded %s items from items.csv.", listNames().size()));
 
         ready = true;
     }
@@ -169,12 +170,12 @@ public class LegacyItemDb extends AbstractItemDb {
         }
 
         if (itemid < 1) {
-            throw new Exception(tl("unknownItemName", itemname));
+            throw new TranslatableException("unknownItemName", itemname);
         }
 
         final ItemData data = legacyIds.get(itemid);
         if (data == null) {
-            throw new Exception(tl("unknownItemId", itemid));
+            throw new TranslatableException("unknownItemId", itemid);
         }
 
         final Material mat = getFromLegacy(itemid, (byte) metaData);
@@ -190,8 +191,8 @@ public class LegacyItemDb extends AbstractItemDb {
         if (mat == MOB_SPAWNER) {
             if (metaData == 0) metaData = EntityType.PIG.getTypeId();
             try {
-                retval = ess.getSpawnerItemProvider().setEntityType(retval, EntityType.fromId(metaData));
-                ess.getPersistentDataProvider().set(retval, "convert", "true");
+                retval = ess.provider(SpawnerItemProvider.class).setEntityType(retval, EntityType.fromId(metaData));
+                ess.provider(PersistentDataProvider.class).set(retval, "convert", "true");
             } catch (final IllegalArgumentException e) {
                 throw new Exception("Can't spawn entity ID " + metaData + " from mob spawners.");
             }
@@ -202,10 +203,10 @@ public class LegacyItemDb extends AbstractItemDb {
             } catch (final IllegalArgumentException e) {
                 throw new Exception("Can't spawn entity ID " + metaData + " from spawn eggs.");
             }
-            retval = ess.getSpawnEggProvider().createEggItem(type);
+            retval = ess.provider(SpawnEggProvider.class).createEggItem(type);
         } else if (mat.name().endsWith("POTION")
             && VersionUtil.getServerBukkitVersion().isLowerThan(VersionUtil.v1_11_R01)) { // Only apply this to pre-1.11 as items.csv might only work in 1.11
-            retval = ess.getPotionMetaProvider().createPotionItem(mat, metaData);
+            retval = ess.provider(PotionMetaProvider.class).createPotionItem(mat, metaData);
         } else {
             retval.setDurability(metaData);
         }

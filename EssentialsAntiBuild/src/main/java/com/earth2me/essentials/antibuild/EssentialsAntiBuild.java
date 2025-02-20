@@ -1,5 +1,6 @@
 package com.earth2me.essentials.antibuild;
 
+import com.earth2me.essentials.EssentialsLogger;
 import com.earth2me.essentials.metrics.MetricsWrapper;
 import org.bukkit.Material;
 import org.bukkit.plugin.Plugin;
@@ -27,6 +28,7 @@ public class EssentialsAntiBuild extends JavaPlugin implements IAntiBuild {
         if (essPlugin == null || !essPlugin.isEnabled()) {
             return;
         }
+        EssentialsLogger.updatePluginLogger(this);
         ess = new EssentialsConnect(essPlugin, this);
 
         final EssentialsAntiBuildListener blockListener = new EssentialsAntiBuildListener(this);
@@ -41,6 +43,12 @@ public class EssentialsAntiBuild extends JavaPlugin implements IAntiBuild {
     public boolean checkProtectionItems(final AntiBuildConfig list, final Material mat) {
         final List<Material> itemList = settingsList.get(list);
         return itemList != null && !itemList.isEmpty() && itemList.contains(mat);
+    }
+
+    @Override
+    public boolean checkProtectionItems(final AntiBuildConfig list, final String mat) {
+        final List<String> protectList = ess.getEssentials().getSettings().getProtectListRaw(list.getConfigName());
+        return protectList != null && !protectList.isEmpty() && protectList.contains(mat);
     }
 
     @Override

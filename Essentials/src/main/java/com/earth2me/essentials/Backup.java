@@ -1,5 +1,6 @@
 package com.earth2me.essentials;
 
+import com.earth2me.essentials.utils.AdventureUtil;
 import net.ess3.api.IEssentials;
 import org.bukkit.Server;
 import org.bukkit.command.CommandSender;
@@ -10,12 +11,10 @@ import java.io.InputStreamReader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
-import static com.earth2me.essentials.I18n.tl;
+import static com.earth2me.essentials.I18n.tlLiteral;
 
 public class Backup implements Runnable {
-    private static final Logger LOGGER = Logger.getLogger("Essentials");
     private transient final Server server;
     private transient final IEssentials ess;
     private final AtomicBoolean pendingShutdown = new AtomicBoolean(false);
@@ -81,7 +80,7 @@ public class Backup implements Runnable {
             taskLock.complete(new Object());
             return;
         }
-        LOGGER.log(Level.INFO, tl("backupStarted"));
+        ess.getLogger().log(Level.INFO, AdventureUtil.miniToLegacy(tlLiteral("backupStarted")));
         final CommandSender cs = server.getConsoleSender();
         server.dispatchCommand(cs, "save-all");
         server.dispatchCommand(cs, "save-off");
@@ -99,17 +98,17 @@ public class Backup implements Runnable {
                             do {
                                 line = reader.readLine();
                                 if (line != null) {
-                                    LOGGER.log(Level.INFO, line);
+                                    ess.getLogger().log(Level.INFO, line);
                                 }
                             } while (line != null);
                         }
                     } catch (final IOException ex) {
-                        LOGGER.log(Level.SEVERE, null, ex);
+                        ess.getLogger().log(Level.SEVERE, "An error occurred while reading backup child process", ex);
                     }
                 });
                 child.waitFor();
             } catch (final InterruptedException | IOException ex) {
-                LOGGER.log(Level.SEVERE, null, ex);
+                ess.getLogger().log(Level.SEVERE, "An error occurred while building the backup child process", ex);
             } finally {
                 class BackupEnableSaveTask implements Runnable {
                     @Override
@@ -120,7 +119,7 @@ public class Backup implements Runnable {
                         }
                         active = false;
                         taskLock.complete(new Object());
-                        LOGGER.log(Level.INFO, tl("backupFinished"));
+                        ess.getLogger().log(Level.INFO, AdventureUtil.miniToLegacy(tlLiteral("backupFinished")));
                     }
                 }
 

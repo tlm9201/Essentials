@@ -1,12 +1,16 @@
 package com.earth2me.essentials.items;
 
+import com.earth2me.essentials.Enchantments;
 import com.earth2me.essentials.IConf;
 import com.earth2me.essentials.User;
+import com.earth2me.essentials.craftbukkit.Inventories;
 import com.earth2me.essentials.utils.FormatUtil;
 import com.earth2me.essentials.utils.MaterialUtil;
 import com.earth2me.essentials.utils.VersionUtil;
 import net.ess3.api.IEssentials;
 import net.ess3.api.PluginKey;
+import net.ess3.provider.BannerDataProvider;
+import net.ess3.provider.PotionMetaProvider;
 import org.bukkit.Color;
 import org.bukkit.DyeColor;
 import org.bukkit.FireworkEffect;
@@ -25,7 +29,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.potion.Potion;
 import org.bukkit.potion.PotionEffect;
 
 import java.util.ArrayList;
@@ -36,8 +39,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
-
-import static com.earth2me.essentials.I18n.tl;
 
 public abstract class AbstractItemDb implements IConf, net.ess3.api.IItemDb {
 
@@ -155,14 +156,14 @@ public abstract class AbstractItemDb implements IConf, net.ess3.api.IItemDb {
         } else if (args[0].equalsIgnoreCase("hand")) {
             is.add(user.getItemInHand().clone());
         } else if (args[0].equalsIgnoreCase("inventory") || args[0].equalsIgnoreCase("invent") || args[0].equalsIgnoreCase("all")) {
-            for (final ItemStack stack : user.getBase().getInventory().getContents()) {
+            for (final ItemStack stack : Inventories.getInventory(user.getBase(), true)) {
                 if (stack == null || stack.getType() == Material.AIR) {
                     continue;
                 }
                 is.add(stack.clone());
             }
         } else if (args[0].equalsIgnoreCase("blocks")) {
-            for (final ItemStack stack : user.getBase().getInventory().getContents()) {
+            for (final ItemStack stack : Inventories.getInventory(user.getBase(), true)) {
                 if (stack == null || stack.getType() == Material.AIR || !stack.getType().isBlock()) {
                     continue;
                 }
@@ -173,7 +174,7 @@ public abstract class AbstractItemDb implements IConf, net.ess3.api.IItemDb {
         }
 
         if (is.isEmpty() || is.get(0).getType() == Material.AIR) {
-            throw new Exception(tl("itemSellAir"));
+            throw new Exception(user.playerTl("itemSellAir"));
         }
 
         return is;
@@ -212,9 +213,15 @@ public abstract class AbstractItemDb implements IConf, net.ess3.api.IItemDb {
                 sb.append("lore:").append(serializeLines(meta.getLore())).append(" ");
             }
 
+            if (VersionUtil.getServerBukkitVersion().isHigherThanOrEqualTo(VersionUtil.v1_14_R01)) {
+                if (meta.hasCustomModelData()) {
+                    sb.append("custom-model-data:").append(meta.getCustomModelData()).append(" ");
+                }
+            }
+
             if (meta.hasEnchants()) {
                 for (final Enchantment e : meta.getEnchants().keySet()) {
-                    sb.append(e.getName().toLowerCase()).append(":").append(meta.getEnchantLevel(e)).append(" ");
+                    sb.append(Enchantments.getRealName(e)).append(":").append(meta.getEnchantLevel(e)).append(" ");
                 }
             }
 
@@ -259,7 +266,7 @@ public abstract class AbstractItemDb implements IConf, net.ess3.api.IItemDb {
             case ENCHANTED_BOOK:
                 final EnchantmentStorageMeta enchantmentStorageMeta = (EnchantmentStorageMeta) is.getItemMeta();
                 for (final Enchantment e : enchantmentStorageMeta.getStoredEnchants().keySet()) {
-                    sb.append(e.getName().toLowerCase()).append(":").append(enchantmentStorageMeta.getStoredEnchantLevel(e)).append(" ");
+                    sb.append(Enchantments.getRealName(e)).append(":").append(enchantmentStorageMeta.getStoredEnchantLevel(e)).append(" ");
                 }
                 break;
         }
@@ -279,12 +286,15 @@ public abstract class AbstractItemDb implements IConf, net.ess3.api.IItemDb {
                 serializeEffectMeta(sb, fireworkEffectMeta.getEffect());
             }
         } else if (MaterialUtil.isPotion(material)) {
-            final Potion potion = Potion.fromDamage(is.getDurability());
-            for (final PotionEffect e : potion.getEffects()) {
+            final PotionMetaProvider provider = ess.provider(PotionMetaProvider.class);
+            final boolean splash = provider.isSplashPotion(is);
+            final Collection<PotionEffect> effects = provider.getCustomEffects(is);
+
+            for (final PotionEffect e : effects) {
                 // long but needs to be effect:speed power:2 duration:120 in that order.
-                sb.append("splash:").append(potion.isSplash()).append(" ").append("effect:").append(e.getType().getName().toLowerCase()).append(" ").append("power:").append(e.getAmplifier()).append(" ").append("duration:").append(e.getDuration() / 20).append(" ");
+                sb.append("splash:").append(splash).append(" ").append("effect:").append(e.getType().getName().toLowerCase()).append(" ").append("power:").append(e.getAmplifier()).append(" ").append("duration:").append(e.getDuration() / 20).append(" ");
             }
-        } else if (MaterialUtil.isPlayerHead(material, is.getData().getData())) {
+        } else if (MaterialUtil.isPlayerHead(is)) {
             // item stack with meta
             final SkullMeta skullMeta = (SkullMeta) is.getItemMeta();
             if (skullMeta != null && skullMeta.hasOwner()) {
@@ -301,6 +311,7 @@ public abstract class AbstractItemDb implements IConf, net.ess3.api.IItemDb {
                     sb.append("basecolor:").append(basecolor).append(" ");
                 }
                 for (final org.bukkit.block.banner.Pattern p : shieldBannerMeta.getPatterns()) {
+                    //noinspection removal
                     final String type = p.getPattern().getIdentifier();
                     final int color = p.getColor().getColor().asRGB();
                     sb.append(type).append(",").append(color).append(" ");
@@ -308,7 +319,7 @@ public abstract class AbstractItemDb implements IConf, net.ess3.api.IItemDb {
             } else {
                 final BannerMeta bannerMeta = (BannerMeta) is.getItemMeta();
                 if (bannerMeta != null) {
-                    DyeColor baseDyeColor = bannerMeta.getBaseColor();
+                    DyeColor baseDyeColor = ess.provider(BannerDataProvider.class).getBaseColor(is);
                     if (baseDyeColor == null) {
                         baseDyeColor = MaterialUtil.getColorOf(material);
                     }
@@ -319,6 +330,7 @@ public abstract class AbstractItemDb implements IConf, net.ess3.api.IItemDb {
                         sb.append("basecolor:").append(basecolor).append(" ");
                     }
                     for (final org.bukkit.block.banner.Pattern p : bannerMeta.getPatterns()) {
+                        //noinspection removal
                         final String type = p.getPattern().getIdentifier();
                         final int color = p.getColor().getColor().asRGB();
                         sb.append(type).append(",").append(color).append(" ");

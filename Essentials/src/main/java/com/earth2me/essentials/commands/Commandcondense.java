@@ -4,6 +4,8 @@ import com.earth2me.essentials.ChargeException;
 import com.earth2me.essentials.Trade;
 import com.earth2me.essentials.Trade.OverflowType;
 import com.earth2me.essentials.User;
+import com.earth2me.essentials.craftbukkit.Inventories;
+import com.earth2me.essentials.utils.VersionUtil;
 import net.ess3.api.MaxMoneyException;
 import org.bukkit.Material;
 import org.bukkit.Server;
@@ -21,8 +23,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static com.earth2me.essentials.I18n.tl;
-
 public class Commandcondense extends EssentialsCommand {
     private final Map<ItemStack, SimpleRecipe> condenseList = new HashMap<>();
 
@@ -38,7 +38,7 @@ public class Commandcondense extends EssentialsCommand {
         if (args.length > 0) {
             is = ess.getItemDb().getMatching(user, args);
         } else {
-            for (final ItemStack stack : user.getBase().getInventory().getContents()) {
+            for (final ItemStack stack : Inventories.getInventory(user.getBase(), false)) {
                 if (stack == null || stack.getType() == Material.AIR) {
                     continue;
                 }
@@ -56,9 +56,9 @@ public class Commandcondense extends EssentialsCommand {
         user.getBase().updateInventory();
 
         if (didConvert) {
-            user.sendMessage(tl("itemsConverted"));
+            user.sendTl("itemsConverted");
         } else {
-            user.sendMessage(tl("itemsNotConverted"));
+            user.sendTl("itemsNotConverted");
             throw new NoChargeException();
         }
     }
@@ -84,7 +84,7 @@ public class Commandcondense extends EssentialsCommand {
 
             int amount = 0;
 
-            for (final ItemStack contents : user.getBase().getInventory().getContents()) {
+            for (final ItemStack contents : Inventories.getInventory(user.getBase(), false)) {
                 if (contents != null && contents.isSimilar(stack)) {
                     amount += contents.getAmount();
                 }
@@ -161,8 +161,7 @@ public class Commandcondense extends EssentialsCommand {
                 iter.remove();
                 continue;
             }
-
-            if (inputSlot.getDurability() == Short.MAX_VALUE) {
+            if (VersionUtil.PRE_FLATTENING && inputSlot.getDurability() == Short.MAX_VALUE) {
                 inputSlot.setDurability((short) 0);
             }
             if (!inputSlot.isSimilar(stack)) {

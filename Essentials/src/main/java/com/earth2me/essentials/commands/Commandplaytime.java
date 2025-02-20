@@ -1,6 +1,8 @@
 package com.earth2me.essentials.commands;
 
 import com.earth2me.essentials.CommandSource;
+import com.earth2me.essentials.User;
+import com.earth2me.essentials.utils.AdventureUtil;
 import com.earth2me.essentials.utils.DateUtil;
 import com.earth2me.essentials.utils.EnumUtil;
 import com.earth2me.essentials.utils.VersionUtil;
@@ -11,8 +13,6 @@ import org.bukkit.Statistic;
 
 import java.util.Collections;
 import java.util.List;
-
-import static com.earth2me.essentials.I18n.tl;
 
 public class Commandplaytime extends EssentialsCommand {
     // For some reason, in 1.13 PLAY_ONE_MINUTE = ticks played = what used to be PLAY_ONE_TICK
@@ -29,7 +29,7 @@ public class Commandplaytime extends EssentialsCommand {
         long playtime;
         final String key;
         
-        if (args.length > 0 && sender.isAuthorized("essentials.playtime.others", ess)) {
+        if (args.length > 0 && sender.isAuthorized("essentials.playtime.others")) {
             try {
                 final IUser user = getPlayer(server, sender, args, 0);
                 displayName = user.getDisplayName();
@@ -39,9 +39,12 @@ public class Commandplaytime extends EssentialsCommand {
                 if (VersionUtil.getServerBukkitVersion().isLowerThan(VersionUtil.v1_15_2_R01)) {
                     throw e;
                 }
-                final IUser user = getPlayer(server, sender, args, 0, true);
-                displayName = user.getName();
+                final User user = getPlayer(server, args, 0, true, true);
+                displayName = user.getName(); // Vanished players will have their name as their display name
                 playtime = Bukkit.getOfflinePlayer(user.getBase().getUniqueId()).getStatistic(PLAY_ONE_TICK);
+                if (user.getBase().isOnline() && user.isVanished()) {
+                    playtime = playtime - ((System.currentTimeMillis() - user.getLastVanishTime()) / 50L);
+                }
             }
             key = "playtimeOther";
         } else if (sender.isPlayer()) {
@@ -54,12 +57,12 @@ public class Commandplaytime extends EssentialsCommand {
         }
 
         final long playtimeMs = System.currentTimeMillis() - (playtime * 50L);
-        sender.sendMessage(tl(key, DateUtil.formatDateDiff(playtimeMs), displayName));
+        sender.sendTl(key, DateUtil.formatDateDiff(playtimeMs), AdventureUtil.parsed(AdventureUtil.legacyToMini(displayName)));
     }
     
     @Override
     protected List<String> getTabCompleteOptions(final Server server, final CommandSource sender, final String commandLabel, final String[] args) {
-        if (args.length == 1 && sender.isAuthorized("essentials.playtime.others", ess)) {
+        if (args.length == 1 && sender.isAuthorized("essentials.playtime.others")) {
             return getPlayers(server, sender);
         } else {
             return Collections.emptyList();

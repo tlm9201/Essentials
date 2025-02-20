@@ -3,11 +3,12 @@ package com.earth2me.essentials;
 import com.earth2me.essentials.api.IAsyncTeleport;
 import com.earth2me.essentials.commands.IEssentialsCommand;
 import com.earth2me.essentials.config.entities.CommandCooldown;
-import net.ess3.api.ITeleport;
 import net.ess3.api.MaxMoneyException;
 import net.ess3.api.events.AfkStatusChangeEvent;
 import net.essentialsx.api.v2.services.mail.MailMessage;
 import net.essentialsx.api.v2.services.mail.MailSender;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.ComponentLike;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -15,7 +16,6 @@ import org.bukkit.entity.Player;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.math.BigDecimal;
-
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -69,13 +69,9 @@ public interface IUser {
      * @return whether there is a teleport request
      */
     @Deprecated
-    boolean hasOutstandingTeleportRequest();
-
-    /**
-     * @deprecated This API is not asynchronous. Use {@link com.earth2me.essentials.api.IAsyncTeleport IAsyncTeleport} with {@link IUser#getAsyncTeleport()}
-     */
-    @Deprecated
-    ITeleport getTeleport();
+    default boolean hasOutstandingTeleportRequest() {
+        return getNextTpaRequest(false, false, false) != null;
+    }
 
     IAsyncTeleport getAsyncTeleport();
 
@@ -93,6 +89,15 @@ public interface IUser {
      * @see IUser#isVanished()
      */
     boolean isHidden();
+
+    /**
+     * Whether the user was hidden before leaving the server.
+     *
+     * @return true if the user was hidden.
+     */
+    boolean isLeavingHidden();
+
+    void setLeavingHidden(boolean leavingHidden);
 
     void setHidden(boolean vanish);
 
@@ -133,6 +138,14 @@ public interface IUser {
 
     void sendMessage(String message);
 
+    void sendComponent(ComponentLike component);
+
+    Component tlComponent(String tlKey, Object... args);
+
+    String playerTl(String tlKey, Object... args);
+
+    void sendTl(String tlKey, Object... args);
+
     /*
      * UserData
      */
@@ -145,6 +158,8 @@ public interface IUser {
     void setHome(String name, Location loc);
 
     void delHome(String name) throws Exception;
+
+    void renameHome(String name, String newName) throws Exception;
 
     boolean hasHome();
 
@@ -261,12 +276,12 @@ public interface IUser {
      * period are removed from queue and therefore not returned here. The maximum size of this
      * queue is determined by {@link ISettings#getTpaMaxRequests()}.
      *
-     * @param inform             true if the underlying {@link IUser} should be informed if a request expires during iteration.
-     * @param performExpirations true if this method should not spend time validating time for all items in the queue and just return the first item in the queue.
-     * @param excludeHere        true if /tphere requests should be ignored in fetching the next tpa request.
+     * @param inform            true if the underlying {@link IUser} should be informed if a request expires during iteration.
+     * @param ignoreExpirations true if this method should not process expirations for the entire queue and stop execution on the first unexpired request.
+     * @param excludeHere       true if /tphere requests should be ignored in fetching the next tpa request.
      * @return A {@link TpaRequest} corresponding to the next available request or null if no valid request is present.
      */
-    @Nullable TpaRequest getNextTpaRequest(boolean inform, boolean performExpirations, boolean excludeHere);
+    @Nullable TpaRequest getNextTpaRequest(boolean inform, boolean ignoreExpirations, boolean excludeHere);
 
     /**
      * Whether or not this {@link IUser} has any valid TPA requests in queue.
@@ -321,4 +336,12 @@ public interface IUser {
             this.time = time;
         }
     }
+
+    List<String> getPastUsernames();
+
+    void addPastUsername(String username);
+
+    boolean isFreeze();
+
+    void setFreeze(boolean freeze);
 }

@@ -1,5 +1,6 @@
 package com.earth2me.essentials;
 
+import com.earth2me.essentials.craftbukkit.Inventories;
 import com.earth2me.essentials.utils.VersionUtil;
 import net.ess3.api.IEssentials;
 import org.bukkit.Location;
@@ -29,13 +30,9 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.List;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-import static com.earth2me.essentials.I18n.tl;
-
 public class EssentialsEntityListener implements Listener {
-    private static final Logger LOGGER = Logger.getLogger("Essentials");
     private static final transient Pattern powertoolPlayer = Pattern.compile("\\{player\\}");
     private final IEssentials ess;
 
@@ -53,12 +50,12 @@ public class EssentialsEntityListener implements Listener {
             if (eDefend instanceof Player) {
                 onPlayerVsPlayerDamage(event, (Player) eDefend, attacker);
             } else if (eDefend instanceof Ageable) {
-                final ItemStack hand = attacker.getBase().getItemInHand();
+                final ItemStack hand = Inventories.getItemInMainHand(attacker.getBase());
                 if (ess.getSettings().isMilkBucketEasterEggEnabled()
                     && hand != null && hand.getType() == Material.MILK_BUCKET) {
                     ((Ageable) eDefend).setBaby();
                     hand.setType(Material.BUCKET);
-                    attacker.getBase().setItemInHand(hand);
+                    Inventories.setItemInMainHand(attacker.getBase(), hand);
                     attacker.getBase().updateInventory();
                     event.setCancelled(true);
                 }
@@ -99,7 +96,7 @@ public class EssentialsEntityListener implements Listener {
     }
 
     private void onPlayerVsPlayerPowertool(final EntityDamageByEntityEvent event, final Player defender, final User attacker) {
-        final List<String> commandList = attacker.getPowertool(attacker.getBase().getItemInHand());
+        final List<String> commandList = attacker.getPowertool(Inventories.getItemInHand(attacker.getBase()));
         if (commandList != null && !commandList.isEmpty()) {
             for (final String tempCommand : commandList) {
                 final String command = powertoolPlayer.matcher(tempCommand).replaceAll(defender.getName());
@@ -109,7 +106,7 @@ public class EssentialsEntityListener implements Listener {
                         @Override
                         public void run() {
                             attacker.getBase().chat("/" + command);
-                            LOGGER.log(Level.INFO, String.format("[PT] %s issued server command: /%s", attacker.getName(), command));
+                            ess.getLogger().log(Level.INFO, String.format("[PT] %s issued server command: /%s", attacker.getName(), command));
                         }
                     }
 
@@ -168,11 +165,11 @@ public class EssentialsEntityListener implements Listener {
         final User user = ess.getUser(event.getEntity());
         if (ess.getSettings().infoAfterDeath()) {
             final Location loc = user.getLocation();
-            user.sendMessage(tl("infoAfterDeath", loc.getWorld().getName(), loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()));
+            user.sendTl("infoAfterDeath", loc.getWorld().getName(), loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
         }
         if (user.isAuthorized("essentials.back.ondeath") && !ess.getSettings().isCommandDisabled("back")) {
             user.setLastLocation();
-            user.sendMessage(tl("backAfterDeath"));
+            user.sendTl("backAfterDeath");
         }
         if (!ess.getSettings().areDeathMessagesEnabled()) {
             event.setDeathMessage("");
@@ -193,57 +190,35 @@ public class EssentialsEntityListener implements Listener {
         final User user = ess.getUser(event.getEntity());
         if (user.isAuthorized("essentials.keepinv")) {
             event.setKeepInventory(true);
-            event.getDrops().clear();
+            // We don't do getDrops().clear() here because it would remove any loot tables that were added by other plugins/datapacks.
+            // Instead, we remove the items from the drops that are in the player's inventory. This way, the loot tables can still drop items.
+            // This is the same behavior as the vanilla /gamerule keepInventory.
+            final ItemStack[] inventory = Inventories.getInventory(event.getEntity(), true);
+            for (final ItemStack item : inventory) {
+                if (item != null) {
+                    event.getDrops().remove(item);
+                }
+            }
             final ISettings.KeepInvPolicy vanish = ess.getSettings().getVanishingItemsPolicy();
             final ISettings.KeepInvPolicy bind = ess.getSettings().getBindingItemsPolicy();
             if (VersionUtil.getServerBukkitVersion().isHigherThanOrEqualTo(VersionUtil.v1_11_2_R01) && (vanish != ISettings.KeepInvPolicy.KEEP || bind != ISettings.KeepInvPolicy.KEEP)) {
-                for (final ItemStack stack : event.getEntity().getInventory()) {
-                    if (stack != null) {
-                        if (stack.getEnchantments().containsKey(Enchantment.VANISHING_CURSE)) {
-                            if (vanish == ISettings.KeepInvPolicy.DELETE) {
-                                event.getEntity().getInventory().remove(stack);
-                            } else if (vanish == ISettings.KeepInvPolicy.DROP) {
-                                event.getDrops().add(stack);
-                                event.getEntity().getInventory().remove(stack);
-                            }
+                Inventories.removeItems(user.getBase(), stack -> {
+                    if (vanish != ISettings.KeepInvPolicy.KEEP && stack.getEnchantments().containsKey(Enchantment.VANISHING_CURSE)) {
+                        if (vanish == ISettings.KeepInvPolicy.DROP) {
+                            event.getDrops().add(stack.clone());
                         }
-                        if (stack.getEnchantments().containsKey(Enchantment.BINDING_CURSE)) {
-                            if (bind == ISettings.KeepInvPolicy.DELETE) {
-                                event.getEntity().getInventory().remove(stack);
-                            } else if (bind == ISettings.KeepInvPolicy.DROP) {
-                                event.getEntity().getInventory().remove(stack);
-                                event.getDrops().add(stack);
-                            }
-                        }
+                        return true;
                     }
-                }
-                final ItemStack[] armor = event.getEntity().getInventory().getArmorContents();
-                for (int i = 0; i < armor.length; i++) {
-                    final ItemStack stack = armor[i];
-                    if (stack != null) {
-                        if (stack.getEnchantments().containsKey(Enchantment.VANISHING_CURSE)) {
-                            if (vanish == ISettings.KeepInvPolicy.DELETE) {
-                                armor[i] = null;
-                            } else if (vanish == ISettings.KeepInvPolicy.DROP) {
-                                if (!event.getDrops().contains(stack)) {
-                                    event.getDrops().add(stack);
-                                }
-                                armor[i] = null;
-                            }
+
+                    if (bind != ISettings.KeepInvPolicy.KEEP && stack.getEnchantments().containsKey(Enchantment.BINDING_CURSE)) {
+                        if (bind == ISettings.KeepInvPolicy.DROP) {
+                            event.getDrops().add(stack.clone());
                         }
-                        if (stack.getEnchantments().containsKey(Enchantment.BINDING_CURSE)) {
-                            if (bind == ISettings.KeepInvPolicy.DELETE) {
-                                armor[i] = null;
-                            } else if (bind == ISettings.KeepInvPolicy.DROP) {
-                                if (!event.getDrops().contains(stack)) {
-                                    event.getDrops().add(stack);
-                                }
-                                armor[i] = null;
-                            }
-                        }
+                        return true;
                     }
-                }
-                event.getEntity().getInventory().setArmorContents(armor);
+
+                    return false;
+                }, true);
             }
         }
     }
